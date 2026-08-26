@@ -1,4 +1,24 @@
-const STORAGE_KEY = "skulemusikken-vakter-v1";
+const STORAGE_KEY = "skulemusikken-vakter-v2";
+
+// Terminlisten som ble lastet opp er for hausten 2026.
+// Personnavn legges ikke i kildekoden så lenge GitHub-repoet er offentlig.
+const DEFAULT_DATES = [
+  "2026-08-20",
+  "2026-08-27",
+  "2026-09-03",
+  "2026-09-10",
+  "2026-09-24",
+  "2026-10-01",
+  "2026-10-15",
+  "2026-10-22",
+  "2026-10-29",
+  "2026-11-05",
+  "2026-11-12",
+  "2026-11-19",
+  "2026-11-26",
+  "2026-12-03",
+  "2026-12-17"
+];
 
 const addDutyBtn = document.querySelector("#addDutyBtn");
 const dutyDialog = document.querySelector("#dutyDialog");
@@ -10,6 +30,7 @@ const filterSelect = document.querySelector("#filterSelect");
 const dutyList = document.querySelector("#dutyList");
 const emptyState = document.querySelector("#emptyState");
 const nextThursdayTitle = document.querySelector("#nextThursdayTitle");
+const nextDutySummary = document.querySelector("#nextDutySummary");
 
 const dateInput = document.querySelector("#dateInput");
 const hovedInput = document.querySelector("#hovedInput");
@@ -17,12 +38,25 @@ const juniorInput = document.querySelector("#juniorInput");
 const aspirantInput = document.querySelector("#aspirantInput");
 const styreInput = document.querySelector("#styreInput");
 
+function makeDefaultDuties() {
+  return DEFAULT_DATES.map((date, index) => ({
+    id: `default-${index + 1}`,
+    date,
+    hoved: "",
+    junior: "",
+    aspirant: "",
+    styre: ""
+  }));
+}
+
 function loadDuties() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return makeDefaultDuties();
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : makeDefaultDuties();
   } catch {
-    return [];
+    return makeDefaultDuties();
   }
 }
 
@@ -39,19 +73,13 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("nb-NO", {
     weekday: "long",
     day: "numeric",
-    month: "long",
-    year: "numeric"
+    month: "long"
   }).format(parseDateOnly(value));
 }
 
-function nextThursday() {
+function todayDateOnly() {
   const now = new Date();
-  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const day = date.getDay();
-  let diff = (4 - day + 7) % 7;
-  if (diff === 0 && now.getHours() >= 20) diff = 7;
-  date.setDate(date.getDate() + diff);
-  return date;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
 function toDateInputValue(date) {
@@ -61,17 +89,17 @@ function toDateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
-function updateNextThursday() {
-  nextThursdayTitle.textContent = new Intl.DateTimeFormat("nb-NO", {
-    weekday: "long",
-    day: "numeric",
-    month: "long"
-  }).format(nextThursday());
+function nextPlannedDuty(duties) {
+  const today = todayDateOnly();
+  return duties
+    .filter((duty) => parseDateOnly(duty.date) >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
 }
 
 function item(label, value, key) {
-  if (!value) return "";
-  return `<div class="duty-item" data-type="${key}"><strong>${label}</strong><span>${escapeHtml(value)}</span></div>`;
+  const shown = value ? escapeHtml(value) : "Ikke lagt inn";
+  const emptyClass = value ? "" : " is-empty";
+  return `<div class="duty-item${emptyClass}" data-type="${key}"><strong>${label}</strong><span>${shown}</span></div>`;
 }
 
 function escapeHtml(value) {
@@ -80,21 +108,35 @@ function escapeHtml(value) {
   return div.innerHTML;
 }
 
+function renderNextDuty(duties) {
+  const next = nextPlannedDuty(duties);
+  if (!next) {
+    nextThursdayTitle.textContent = "Ingen flere vaktdatoer lagt inn";
+    nextDutySummary.innerHTML = "";
+    return;
+  }
+
+  nextThursdayTitle.textContent = formatDate(next.date);
+  nextDutySummary.innerHTML = `
+    <div class="duty-grid">
+      ${item("Hovedkorps", next.hoved, "hoved")}
+      ${item("Juniorkorps", next.junior, "junior")}
+      ${item("Aspirantkorps", next.aspirant, "aspirant")}
+      ${item("Styrevakt", next.styre, "styre")}
+    </div>`;
+}
+
 function render() {
   const filter = filterSelect.value;
   const duties = loadDuties().sort((a, b) => a.date.localeCompare(b.date));
+  renderNextDuty(duties);
 
   const visible = duties.filter((duty) => {
     if (filter === "all") return true;
     return Boolean(duty[filter]);
   });
 
-  emptyState.hidden = duties.length > 0;
-
-  if (visible.length === 0 && duties.length > 0) {
-    dutyList.innerHTML = `<div class="empty-state"><h3>Ingen vakter i dette filteret</h3><p>Velg «Alle» eller et annet korps.</p></div>`;
-    return;
-  }
+  emptyState.hidden = visible.length > 0;
 
   dutyList.innerHTML = visible.map((duty) => {
     const content = filter === "all"
@@ -111,15 +153,24 @@ function render() {
         <div class="duty-date">${formatDate(duty.date)}</div>
         <div class="duty-grid">${content}</div>
         <div class="duty-actions">
-          <button class="delete-btn" type="button" data-delete-id="${duty.id}">Slett</button>
+          <button class="edit-btn" type="button" data-edit-id="${duty.id}">Endre</button>
         </div>
       </article>`;
   }).join("");
 }
 
-function openDialog() {
+function openDialog(duty = null) {
   dutyForm.reset();
-  dateInput.value = toDateInputValue(nextThursday());
+  if (duty) {
+    dateInput.value = duty.date;
+    hovedInput.value = duty.hoved || "";
+    juniorInput.value = duty.junior || "";
+    aspirantInput.value = duty.aspirant || "";
+    styreInput.value = duty.styre || "";
+  } else {
+    const next = nextPlannedDuty(loadDuties());
+    dateInput.value = next ? next.date : toDateInputValue(todayDateOnly());
+  }
   dutyDialog.showModal();
   dateInput.focus();
 }
@@ -128,7 +179,7 @@ function closeDialog() {
   dutyDialog.close();
 }
 
-addDutyBtn.addEventListener("click", openDialog);
+addDutyBtn.addEventListener("click", () => openDialog());
 closeDialogBtn.addEventListener("click", closeDialog);
 cancelBtn.addEventListener("click", closeDialog);
 filterSelect.addEventListener("change", render);
@@ -144,9 +195,7 @@ dutyForm.addEventListener("submit", (event) => {
     styre: styreInput.value.trim()
   };
 
-  if (!dateInput.value || !Object.values(values).some(Boolean)) {
-    return;
-  }
+  if (!dateInput.value) return;
 
   const duties = loadDuties();
   const existing = duties.find((duty) => duty.date === dateInput.value);
@@ -167,14 +216,10 @@ dutyForm.addEventListener("submit", (event) => {
 });
 
 dutyList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-delete-id]");
+  const button = event.target.closest("[data-edit-id]");
   if (!button) return;
-
-  const id = button.dataset.deleteId;
-  const duties = loadDuties().filter((duty) => duty.id !== id);
-  saveDuties(duties);
-  render();
+  const duty = loadDuties().find((item) => item.id === button.dataset.editId);
+  if (duty) openDialog(duty);
 });
 
-updateNextThursday();
 render();
