@@ -203,9 +203,12 @@ function renderNext() {
     $("#nextItemSummary").innerHTML = "";
     return;
   }
+
   $("#nextItemTitle").textContent = `${formatDate(next.date)} · ${next.kind === "duty" ? "Øving" : next.title}`;
   const time = next.time ? `<strong>${escapeHtml(next.time)}</strong>` : "";
-  $("#nextItemSummary").innerHTML = `${time}${next.details ? `<p class="muted">${escapeHtml(next.details)}</p>` : ""}`;
+  const details = next.details ? `<p class="muted">${escapeHtml(next.details)}</p>` : "";
+  const dutiesAndAssignments = `<div class="timeline-private next-private">${privateLines(next)}</div>`;
+  $("#nextItemSummary").innerHTML = `${time}${details}${dutiesAndAssignments}`;
 }
 
 function render() {
