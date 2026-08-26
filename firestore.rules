@@ -1,28 +1,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isApprovedUser() {
+    function isSkulemusikkenUser() {
       return request.auth != null &&
-        exists(/databases/$(database)/documents/members/$(request.auth.uid));
+        exists(/databases/$(database)/documents/apps/skulemusikken/members/$(request.auth.uid));
     }
 
-    // Vaktdata er kun tilgjengelig for brukere som finnes i members/{uid}.
-    match /duties/{dutyId} {
-      allow read, write: if isApprovedUser();
+    // Kun denne appens data. Andre samlinger i Firebase-prosjektet påvirkes ikke.
+    match /apps/skulemusikken/duties/{dutyId} {
+      allow read, write: if isSkulemusikkenUser();
     }
 
-    match /settings/{docId} {
-      allow read, write: if isApprovedUser();
+    match /apps/skulemusikken/settings/{docId} {
+      allow read, write: if isSkulemusikkenUser();
     }
 
-    // En innlogget bruker kan lese sin egen medlemsmarkør, men ikke lage den selv.
-    match /members/{uid} {
+    match /apps/skulemusikken/members/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create, update, delete: if false;
     }
 
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // NB: Disse reglene dekker bare Skulemusikken-området. Hvis det eksisterende
+    // Firebase-prosjektet allerede har andre Firestore-regler, må blokkene over
+    // flettes inn i de eksisterende reglene i stedet for å erstatte hele regelsettet.
   }
 }
