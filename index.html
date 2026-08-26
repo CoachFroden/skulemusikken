@@ -14,10 +14,19 @@
       <p class="eyebrow">Samnanger skulemusikklag</p>
       <h1>Skulemusikken</h1>
     </div>
-    <button id="addDutyBtn" class="primary-btn" type="button">+ Legg inn / endre vakt</button>
+    <div class="top-actions">
+      <button id="loginBtn" class="secondary-btn" type="button">Logg inn med Google</button>
+      <button id="logoutBtn" class="secondary-btn" type="button" hidden>Logg ut</button>
+      <button id="addDutyBtn" class="primary-btn" type="button">+ Legg inn / endre vakt</button>
+    </div>
   </header>
 
   <main class="page">
+    <section class="auth-card" aria-live="polite">
+      <strong>Tilgang</strong>
+      <span id="authStatus">Kontrollerer Firebase-oppsett …</span>
+    </section>
+
     <section class="hero-card" aria-labelledby="nextThursdayTitle">
       <div class="hero-main">
         <p class="eyebrow">Neste vakt</p>
@@ -132,6 +141,7 @@
     </form>
   </dialog>
 
-  <script src="app.js"></script>
+  <script src="firebase-config.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
