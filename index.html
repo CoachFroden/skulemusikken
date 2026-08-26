@@ -14,18 +14,18 @@
       <p class="eyebrow">Samnanger skulemusikklag</p>
       <h1>Skulemusikken</h1>
     </div>
-    <button id="addDutyBtn" class="primary-btn" type="button">+ Legg inn vakt</button>
+    <button id="addDutyBtn" class="primary-btn" type="button">+ Legg inn / endre vakt</button>
   </header>
 
   <main class="page">
     <section class="hero-card" aria-labelledby="nextThursdayTitle">
-      <div>
-        <p class="eyebrow">Neste torsdag</p>
+      <div class="hero-main">
+        <p class="eyebrow">Neste vakt</p>
         <h2 id="nextThursdayTitle">Laster…</h2>
-        <p class="muted">Felles oversikt over øving og vakter.</p>
+        <div id="nextDutySummary" class="next-duty-summary" aria-live="polite"></div>
       </div>
       <div class="hero-actions">
-        <button class="secondary-btn" id="jumpToDutiesBtn" type="button">Se vakter</button>
+        <button class="secondary-btn" id="jumpToDutiesBtn" type="button">Se hele vaktplanen</button>
       </div>
     </section>
 
@@ -64,7 +64,7 @@
     <section id="dutiesSection" aria-labelledby="dutiesTitle">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Vaktplan</p>
+          <p class="eyebrow">Hausten 2026</p>
           <h2 id="dutiesTitle">Hvem har vakt?</h2>
         </div>
         <div class="filter-row">
@@ -81,9 +81,9 @@
         </div>
       </div>
 
-      <div id="emptyState" class="empty-state">
-        <h3>Ingen vakter er lagt inn på denne enheten ennå</h3>
-        <p>Trykk «Legg inn vakt». Navnene lagres bare lokalt i nettleseren og publiseres ikke på GitHub.</p>
+      <div id="emptyState" class="empty-state" hidden>
+        <h3>Ingen vakter å vise</h3>
+        <p>Legg inn en vakt med knappen øverst.</p>
       </div>
 
       <div id="dutyList" class="duty-list" aria-live="polite"></div>
@@ -94,8 +94,8 @@
     <form id="dutyForm" method="dialog" class="dialog-form">
       <div class="dialog-header">
         <div>
-          <p class="eyebrow">Ny vakt</p>
-          <h2>Legg inn vakt</h2>
+          <p class="eyebrow">Vaktplan</p>
+          <h2>Legg inn eller endre vakt</h2>
         </div>
         <button id="closeDialogBtn" class="icon-btn" type="button" aria-label="Lukk">×</button>
       </div>
