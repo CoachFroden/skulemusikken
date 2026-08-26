@@ -16,6 +16,10 @@ import {
   setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
+// Denne appen kan bruke et eksisterende Firebase-prosjekt uten å blande data
+// med andre apper. Alt privat innhold ligger under apps/skulemusikken/...
+const APP_ROOT = ["apps", "skulemusikken"];
+
 // Terminlisten er for hausten 2026. Datoene er offentlige,
 // mens personnavn hentes fra privat Firestore etter godkjent innlogging.
 const DEFAULT_DATES = [
@@ -65,6 +69,18 @@ let db = null;
 let currentUser = null;
 let approvedUser = false;
 let duties = makeDefaultDuties();
+
+function dutiesCollection() {
+  return collection(db, ...APP_ROOT, "duties");
+}
+
+function dutyDocument(date) {
+  return doc(db, ...APP_ROOT, "duties", date);
+}
+
+function memberDocument(uid) {
+  return doc(db, ...APP_ROOT, "members", uid);
+}
 
 function makeDefaultDuties() {
   return DEFAULT_DATES.map((date) => ({
@@ -205,15 +221,14 @@ function setAuthStatus(message, kind = "info") {
 }
 
 async function loadPrivateDuties() {
-  const snapshot = await getDocs(collection(db, "duties"));
+  const snapshot = await getDocs(dutiesCollection());
   const privateRows = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
   duties = mergePrivateDuties(privateRows);
   render();
 }
 
 async function checkMembership(user) {
-  const memberRef = doc(db, "members", user.uid);
-  const memberSnap = await getDoc(memberRef);
+  const memberSnap = await getDoc(memberDocument(user.uid));
   approvedUser = memberSnap.exists();
 
   if (!approvedUser) {
@@ -290,7 +305,7 @@ dutyForm.addEventListener("submit", async (event) => {
   submitButton.disabled = true;
 
   try {
-    await setDoc(doc(db, "duties", values.date), values, { merge: true });
+    await setDoc(dutyDocument(values.date), values, { merge: true });
     closeDialog();
     await loadPrivateDuties();
   } catch (error) {
