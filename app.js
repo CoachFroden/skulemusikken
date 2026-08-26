@@ -1,7 +1,23 @@
-const STORAGE_KEY = "skulemusikken-vakter-v2";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  serverTimestamp,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// Terminlisten som ble lastet opp er for hausten 2026.
-// Personnavn legges ikke i kildekoden så lenge GitHub-repoet er offentlig.
+// Terminlisten er for hausten 2026. Datoene er offentlige,
+// mens personnavn hentes fra privat Firestore etter godkjent innlogging.
 const DEFAULT_DATES = [
   "2026-08-20",
   "2026-08-27",
@@ -31,6 +47,9 @@ const dutyList = document.querySelector("#dutyList");
 const emptyState = document.querySelector("#emptyState");
 const nextThursdayTitle = document.querySelector("#nextThursdayTitle");
 const nextDutySummary = document.querySelector("#nextDutySummary");
+const authStatus = document.querySelector("#authStatus");
+const loginBtn = document.querySelector("#loginBtn");
+const logoutBtn = document.querySelector("#logoutBtn");
 
 const dateInput = document.querySelector("#dateInput");
 const hovedInput = document.querySelector("#hovedInput");
@@ -38,9 +57,18 @@ const juniorInput = document.querySelector("#juniorInput");
 const aspirantInput = document.querySelector("#aspirantInput");
 const styreInput = document.querySelector("#styreInput");
 
+const firebaseConfig = window.SKULEMUSIKKEN_FIREBASE_CONFIG;
+const firebaseReady = Boolean(firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId);
+
+let auth = null;
+let db = null;
+let currentUser = null;
+let approvedUser = false;
+let duties = makeDefaultDuties();
+
 function makeDefaultDuties() {
-  return DEFAULT_DATES.map((date, index) => ({
-    id: `default-${index + 1}`,
+  return DEFAULT_DATES.map((date) => ({
+    id: date,
     date,
     hoved: "",
     junior: "",
@@ -49,19 +77,20 @@ function makeDefaultDuties() {
   }));
 }
 
-function loadDuties() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return makeDefaultDuties();
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : makeDefaultDuties();
-  } catch {
-    return makeDefaultDuties();
+function mergePrivateDuties(privateRows) {
+  const byDate = new Map(makeDefaultDuties().map((row) => [row.date, row]));
+  for (const row of privateRows) {
+    if (!row.date) continue;
+    byDate.set(row.date, {
+      id: row.date,
+      date: row.date,
+      hoved: row.hoved || "",
+      junior: row.junior || "",
+      aspirant: row.aspirant || "",
+      styre: row.styre || ""
+    });
   }
-}
-
-function saveDuties(duties) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(duties));
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function parseDateOnly(value) {
@@ -89,17 +118,11 @@ function toDateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
-function nextPlannedDuty(duties) {
+function nextPlannedDuty(rows) {
   const today = todayDateOnly();
-  return duties
+  return rows
     .filter((duty) => parseDateOnly(duty.date) >= today)
     .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
-}
-
-function item(label, value, key) {
-  const shown = value ? escapeHtml(value) : "Ikke lagt inn";
-  const emptyClass = value ? "" : " is-empty";
-  return `<div class="duty-item${emptyClass}" data-type="${key}"><strong>${label}</strong><span>${shown}</span></div>`;
 }
 
 function escapeHtml(value) {
@@ -108,7 +131,19 @@ function escapeHtml(value) {
   return div.innerHTML;
 }
 
-function renderNextDuty(duties) {
+function item(label, value, key) {
+  let shown = "Logg inn for å se vakt";
+  let emptyClass = " is-empty";
+
+  if (approvedUser) {
+    shown = value ? escapeHtml(value) : "Ikke lagt inn";
+    emptyClass = value ? "" : " is-empty";
+  }
+
+  return `<div class="duty-item${emptyClass}" data-type="${key}"><strong>${label}</strong><span>${shown}</span></div>`;
+}
+
+function renderNextDuty() {
   const next = nextPlannedDuty(duties);
   if (!next) {
     nextThursdayTitle.textContent = "Ingen flere vaktdatoer lagt inn";
@@ -127,12 +162,12 @@ function renderNextDuty(duties) {
 }
 
 function render() {
+  renderNextDuty();
   const filter = filterSelect.value;
-  const duties = loadDuties().sort((a, b) => a.date.localeCompare(b.date));
-  renderNextDuty(duties);
 
   const visible = duties.filter((duty) => {
     if (filter === "all") return true;
+    if (!approvedUser) return true;
     return Boolean(duty[filter]);
   });
 
@@ -148,18 +183,53 @@ function render() {
         ].join("")
       : item({hoved:"Hovedkorps",junior:"Juniorkorps",aspirant:"Aspirantkorps",styre:"Styrevakt"}[filter], duty[filter], filter);
 
+    const editButton = approvedUser
+      ? `<div class="duty-actions"><button class="edit-btn" type="button" data-edit-id="${duty.id}">Endre</button></div>`
+      : "";
+
     return `
       <article class="duty-card">
         <div class="duty-date">${formatDate(duty.date)}</div>
         <div class="duty-grid">${content}</div>
-        <div class="duty-actions">
-          <button class="edit-btn" type="button" data-edit-id="${duty.id}">Endre</button>
-        </div>
+        ${editButton}
       </article>`;
   }).join("");
+
+  addDutyBtn.disabled = !approvedUser;
+  addDutyBtn.title = approvedUser ? "" : "Krever godkjent innlogging";
+}
+
+function setAuthStatus(message, kind = "info") {
+  authStatus.textContent = message;
+  authStatus.dataset.kind = kind;
+}
+
+async function loadPrivateDuties() {
+  const snapshot = await getDocs(collection(db, "duties"));
+  const privateRows = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+  duties = mergePrivateDuties(privateRows);
+  render();
+}
+
+async function checkMembership(user) {
+  const memberRef = doc(db, "members", user.uid);
+  const memberSnap = await getDoc(memberRef);
+  approvedUser = memberSnap.exists();
+
+  if (!approvedUser) {
+    duties = makeDefaultDuties();
+    setAuthStatus(`Innlogget, men ikke godkjent ennå. UID: ${user.uid}`, "warning");
+    render();
+    return;
+  }
+
+  setAuthStatus(`Innlogget som ${user.email || "godkjent bruker"}`, "success");
+  await loadPrivateDuties();
 }
 
 function openDialog(duty = null) {
+  if (!approvedUser) return;
+
   dutyForm.reset();
   if (duty) {
     dateInput.value = duty.date;
@@ -168,7 +238,7 @@ function openDialog(duty = null) {
     aspirantInput.value = duty.aspirant || "";
     styreInput.value = duty.styre || "";
   } else {
-    const next = nextPlannedDuty(loadDuties());
+    const next = nextPlannedDuty(duties);
     dateInput.value = next ? next.date : toDateInputValue(todayDateOnly());
   }
   dutyDialog.showModal();
@@ -185,41 +255,90 @@ cancelBtn.addEventListener("click", closeDialog);
 filterSelect.addEventListener("change", render);
 jumpToDutiesBtn.addEventListener("click", () => document.querySelector("#dutiesSection").scrollIntoView({ behavior: "smooth" }));
 
-dutyForm.addEventListener("submit", (event) => {
+loginBtn.addEventListener("click", async () => {
+  if (!firebaseReady || !auth) return;
+  loginBtn.disabled = true;
+  try {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  } catch (error) {
+    console.error(error);
+    setAuthStatus("Innlogging feilet. Kontroller Firebase Authentication og godkjent domene.", "error");
+  } finally {
+    loginBtn.disabled = false;
+  }
+});
+
+logoutBtn.addEventListener("click", async () => {
+  if (auth) await signOut(auth);
+});
+
+dutyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!approvedUser || !db || !dateInput.value) return;
 
   const values = {
+    date: dateInput.value,
     hoved: hovedInput.value.trim(),
     junior: juniorInput.value.trim(),
     aspirant: aspirantInput.value.trim(),
-    styre: styreInput.value.trim()
+    styre: styreInput.value.trim(),
+    updatedAt: serverTimestamp()
   };
 
-  if (!dateInput.value) return;
+  const submitButton = dutyForm.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
 
-  const duties = loadDuties();
-  const existing = duties.find((duty) => duty.date === dateInput.value);
-
-  if (existing) {
-    Object.assign(existing, values);
-  } else {
-    duties.push({
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-      date: dateInput.value,
-      ...values
-    });
+  try {
+    await setDoc(doc(db, "duties", values.date), values, { merge: true });
+    closeDialog();
+    await loadPrivateDuties();
+  } catch (error) {
+    console.error(error);
+    setAuthStatus("Kunne ikke lagre vakten. Kontroller Firestore-reglene.", "error");
+  } finally {
+    submitButton.disabled = false;
   }
-
-  saveDuties(duties);
-  closeDialog();
-  render();
 });
 
 dutyList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-edit-id]");
-  if (!button) return;
-  const duty = loadDuties().find((item) => item.id === button.dataset.editId);
+  if (!button || !approvedUser) return;
+  const duty = duties.find((item) => item.id === button.dataset.editId || item.date === button.dataset.editId);
   if (duty) openDialog(duty);
 });
 
-render();
+if (!firebaseReady) {
+  loginBtn.disabled = true;
+  logoutBtn.hidden = true;
+  setAuthStatus("Firebase er klargjort i koden, men prosjektkonfigurasjonen mangler.", "warning");
+  render();
+} else {
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+
+  onAuthStateChanged(auth, async (user) => {
+    currentUser = user;
+    approvedUser = false;
+    duties = makeDefaultDuties();
+
+    loginBtn.hidden = Boolean(user);
+    logoutBtn.hidden = !user;
+
+    if (!user) {
+      setAuthStatus("Logg inn for å se navn i vaktplanen.");
+      render();
+      return;
+    }
+
+    try {
+      setAuthStatus("Kontrollerer tilgang …");
+      await checkMembership(user);
+    } catch (error) {
+      console.error(error);
+      setAuthStatus(`Tilgang kunne ikke bekreftes. UID: ${user.uid}`, "error");
+      render();
+    }
+  });
+}
