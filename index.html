@@ -17,8 +17,9 @@
     <div class="top-actions">
       <button id="loginBtn" class="secondary-btn" type="button">Logg inn med Google</button>
       <button id="logoutBtn" class="secondary-btn" type="button" hidden>Logg ut</button>
-      <button id="importDutyBtn" class="secondary-btn" type="button" hidden>Importer vaktliste</button>
       <button id="addDutyBtn" class="primary-btn" type="button">+ Legg inn / endre vakt</button>
+      <button id="importDutyBtn" class="secondary-btn" type="button" hidden>Importer vaktliste</button>
+      <button id="importEventBtn" class="secondary-btn" type="button" hidden>Importer arrangementvakter</button>
     </div>
   </header>
 
@@ -37,6 +38,16 @@
       <div class="hero-actions">
         <button class="secondary-btn" id="jumpToDutiesBtn" type="button">Se hele vaktplanen</button>
       </div>
+    </section>
+
+    <section aria-labelledby="eventsTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Terminliste</p>
+          <h2 id="eventsTitle">Arrangementer</h2>
+        </div>
+      </div>
+      <div id="eventList" class="event-list"></div>
     </section>
 
     <section aria-labelledby="corpsTitle">
@@ -124,33 +135,44 @@
   </dialog>
 
   <dialog id="importDialog">
-    <form id="importForm" method="dialog" class="dialog-form import-form">
+    <form id="importForm" class="dialog-form">
       <div class="dialog-header">
         <div>
           <p class="eyebrow">Admin</p>
-          <h2>Importer vaktliste</h2>
+          <h2>Importer ordinære vakter</h2>
         </div>
         <button id="closeImportBtn" class="icon-btn" type="button" aria-label="Lukk">×</button>
       </div>
-
-      <p class="muted">Lim inn én linje per dato. Bruk tabulator eller | mellom feltene:</p>
-      <code>2026-09-03 | Navn hovedkorps | Navn juniorkorps | Navn aspirant | Navn styrevakt</code>
-
-      <label>
-        Vaktliste
-        <textarea id="importText" rows="14" spellcheck="false" placeholder="2026-09-03 | ..."></textarea>
-      </label>
-
+      <p class="muted">Én linje per dato: dato | hovedkorps | juniorkorps | aspirantkorps | styrevakt</p>
+      <textarea id="importText" rows="12" spellcheck="false" placeholder="2026-09-03 | Martin | Ingrid | Mikkel | Frode"></textarea>
       <p id="importResult" class="import-result" aria-live="polite"></p>
-
       <div class="dialog-actions">
         <button id="cancelImportBtn" class="secondary-btn" type="button">Avbryt</button>
-        <button class="primary-btn" type="submit">Importer til Firestore</button>
+        <button class="primary-btn" type="submit">Importer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="eventImportDialog">
+    <form id="eventImportForm" class="dialog-form">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">Admin</p>
+          <h2>Importer vakter og komiteer</h2>
+        </div>
+        <button id="closeEventImportBtn" class="icon-btn" type="button" aria-label="Lukk">×</button>
+      </div>
+      <p class="muted">Én linje per arrangement: arrangement-id | hovedkorps | juniorkorps | aspirantkorps | styrevakt | komité | mat</p>
+      <textarea id="eventImportText" rows="12" spellcheck="false" placeholder="seminar-2026-08-21 | Noha | David | | Shirin | | frukt"></textarea>
+      <p id="eventImportResult" class="import-result" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button id="cancelEventImportBtn" class="secondary-btn" type="button">Avbryt</button>
+        <button class="primary-btn" type="submit">Importer</button>
       </div>
     </form>
   </dialog>
 
   <script src="firebase-config.js?v=20260826-3"></script>
-  <script type="module" src="app.js?v=20260826-3"></script>
+  <script type="module" src="app.js?v=20260826-4"></script>
 </body>
 </html>
