@@ -1,27 +1,40 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSkulemusikkenUser() {
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/apps/skulemusikken/members/$(request.auth.uid));
+    function signedIn() { return request.auth != null; }
+
+    match /songs/{songId} {
+      allow read, create, update, delete: if signedIn();
     }
 
-    // Kun denne appens data. Andre samlinger i Firebase-prosjektet påvirkes ikke.
+    match /pdfEnhancementJobs/{jobId} {
+      allow create: if signedIn()
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == "queued"
+        && request.resource.data.songId is string
+        && request.resource.data.partId is string
+        && request.resource.data.originalStoragePath is string;
+      allow read: if signedIn()
+        && resource.data.requestedBy == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    function isSkulemusikkenMember() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/apps/skulemusikken/members/$(request.auth.uid));
+    }
+
     match /apps/skulemusikken/duties/{dutyId} {
-      allow read, write: if isSkulemusikkenUser();
+      allow read, create, update, delete: if isSkulemusikkenMember();
     }
 
     match /apps/skulemusikken/settings/{docId} {
-      allow read, write: if isSkulemusikkenUser();
+      allow read, create, update, delete: if isSkulemusikkenMember();
     }
 
     match /apps/skulemusikken/members/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
+      allow read: if signedIn() && request.auth.uid == uid;
       allow create, update, delete: if false;
     }
-
-    // NB: Disse reglene dekker bare Skulemusikken-området. Hvis det eksisterende
-    // Firebase-prosjektet allerede har andre Firestore-regler, må blokkene over
-    // flettes inn i de eksisterende reglene i stedet for å erstatte hele regelsettet.
   }
 }
