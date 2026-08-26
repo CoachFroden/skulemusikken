@@ -13,15 +13,14 @@ import {
   getDocs,
   getFirestore,
   serverTimestamp,
-  setDoc
+  setDoc,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// Denne appen kan bruke et eksisterende Firebase-prosjekt uten å blande data
-// med andre apper. Alt privat innhold ligger under apps/skulemusikken/...
+// Alt privat innhold ligger under apps/skulemusikken/...
 const APP_ROOT = ["apps", "skulemusikken"];
 
-// Terminlisten er for hausten 2026. Datoene er offentlige,
-// mens personnavn hentes fra privat Firestore etter godkjent innlogging.
+// Datoene er offentlige. Personnavn ligger bare i Firestore.
 const DEFAULT_DATES = [
   "2026-08-20",
   "2026-08-27",
@@ -41,6 +40,7 @@ const DEFAULT_DATES = [
 ];
 
 const addDutyBtn = document.querySelector("#addDutyBtn");
+const importDutyBtn = document.querySelector("#importDutyBtn");
 const dutyDialog = document.querySelector("#dutyDialog");
 const dutyForm = document.querySelector("#dutyForm");
 const closeDialogBtn = document.querySelector("#closeDialogBtn");
@@ -55,6 +55,13 @@ const authStatus = document.querySelector("#authStatus");
 const loginBtn = document.querySelector("#loginBtn");
 const logoutBtn = document.querySelector("#logoutBtn");
 
+const importDialog = document.querySelector("#importDialog");
+const importForm = document.querySelector("#importForm");
+const importText = document.querySelector("#importText");
+const importResult = document.querySelector("#importResult");
+const closeImportBtn = document.querySelector("#closeImportBtn");
+const cancelImportBtn = document.querySelector("#cancelImportBtn");
+
 const dateInput = document.querySelector("#dateInput");
 const hovedInput = document.querySelector("#hovedInput");
 const juniorInput = document.querySelector("#juniorInput");
@@ -66,8 +73,9 @@ const firebaseReady = Boolean(firebaseConfig && firebaseConfig.apiKey && firebas
 
 let auth = null;
 let db = null;
-let currentUser = null;
 let approvedUser = false;
+let currentRole = null;
+let currentUser = null;
 let duties = makeDefaultDuties();
 
 function dutiesCollection() {
@@ -213,6 +221,7 @@ function render() {
 
   addDutyBtn.disabled = !approvedUser;
   addDutyBtn.title = approvedUser ? "" : "Krever godkjent innlogging";
+  importDutyBtn.hidden = currentRole !== "admin";
 }
 
 function setAuthStatus(message, kind = "info") {
@@ -230,6 +239,7 @@ async function loadPrivateDuties() {
 async function checkMembership(user) {
   const memberSnap = await getDoc(memberDocument(user.uid));
   approvedUser = memberSnap.exists();
+  currentRole = approvedUser ? (memberSnap.data()?.role || "member") : null;
 
   if (!approvedUser) {
     duties = makeDefaultDuties();
@@ -264,9 +274,52 @@ function closeDialog() {
   dutyDialog.close();
 }
 
+function openImportDialog() {
+  if (currentRole !== "admin") return;
+  importForm.reset();
+  importResult.textContent = "";
+  importDialog.showModal();
+  importText.focus();
+}
+
+function closeImportDialog() {
+  importDialog.close();
+}
+
+function parseImportRows(text) {
+  const rows = [];
+  const errors = [];
+
+  text.split(/\r?\n/).forEach((rawLine, index) => {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) return;
+
+    const separator = line.includes("\t") ? "\t" : "|";
+    const parts = line.split(separator).map((part) => part.trim());
+
+    if (parts.length !== 5) {
+      errors.push(`Linje ${index + 1}: forventet 5 felt.`);
+      return;
+    }
+
+    const [date, hoved, junior, aspirant, styre] = parts;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      errors.push(`Linje ${index + 1}: ugyldig dato «${date}».`);
+      return;
+    }
+
+    rows.push({ date, hoved, junior, aspirant, styre });
+  });
+
+  return { rows, errors };
+}
+
 addDutyBtn.addEventListener("click", () => openDialog());
+importDutyBtn.addEventListener("click", openImportDialog);
 closeDialogBtn.addEventListener("click", closeDialog);
 cancelBtn.addEventListener("click", closeDialog);
+closeImportBtn.addEventListener("click", closeImportDialog);
+cancelImportBtn.addEventListener("click", closeImportDialog);
 filterSelect.addEventListener("change", render);
 jumpToDutiesBtn.addEventListener("click", () => document.querySelector("#dutiesSection").scrollIntoView({ behavior: "smooth" }));
 
@@ -298,7 +351,8 @@ dutyForm.addEventListener("submit", async (event) => {
     junior: juniorInput.value.trim(),
     aspirant: aspirantInput.value.trim(),
     styre: styreInput.value.trim(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
+    updatedBy: currentUser?.uid || null
   };
 
   const submitButton = dutyForm.querySelector('button[type="submit"]');
@@ -316,6 +370,52 @@ dutyForm.addEventListener("submit", async (event) => {
   }
 });
 
+importForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (currentRole !== "admin" || !db) return;
+
+  const { rows, errors } = parseImportRows(importText.value);
+  if (errors.length) {
+    importResult.textContent = errors.slice(0, 4).join(" ");
+    importResult.dataset.kind = "error";
+    return;
+  }
+
+  if (!rows.length) {
+    importResult.textContent = "Ingen gyldige linjer å importere.";
+    importResult.dataset.kind = "error";
+    return;
+  }
+
+  const submitButton = importForm.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  importResult.textContent = `Importerer ${rows.length} vaktdatoer …`;
+  importResult.dataset.kind = "info";
+
+  try {
+    const batch = writeBatch(db);
+    rows.forEach((row) => {
+      batch.set(dutyDocument(row.date), {
+        ...row,
+        source: "terminliste-haust-2026",
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser?.uid || null
+      }, { merge: true });
+    });
+    await batch.commit();
+    await loadPrivateDuties();
+    importText.value = "";
+    importResult.textContent = `${rows.length} vaktdatoer er lagret privat i Firestore.`;
+    importResult.dataset.kind = "success";
+  } catch (error) {
+    console.error(error);
+    importResult.textContent = "Importen feilet. Ingen navn er lagt i GitHub.";
+    importResult.dataset.kind = "error";
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
 dutyList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-edit-id]");
   if (!button || !approvedUser) return;
@@ -326,6 +426,7 @@ dutyList.addEventListener("click", (event) => {
 if (!firebaseReady) {
   loginBtn.disabled = true;
   logoutBtn.hidden = true;
+  importDutyBtn.hidden = true;
   setAuthStatus("Firebase er klargjort i koden, men prosjektkonfigurasjonen mangler.", "warning");
   render();
 } else {
@@ -336,6 +437,7 @@ if (!firebaseReady) {
   onAuthStateChanged(auth, async (user) => {
     currentUser = user;
     approvedUser = false;
+    currentRole = null;
     duties = makeDefaultDuties();
 
     loginBtn.hidden = Boolean(user);
