@@ -1,0 +1,9 @@
+{
+  "name": "Skulemusikken",
+  "short_name": "Skulemusikken",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#1f4f7a",
+  "description": "Enkel oversikt over øvinger og vakter i Samnanger skulemusikklag."
+}
