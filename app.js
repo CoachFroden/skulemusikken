@@ -48,6 +48,7 @@ let approvedUser = false;
 let currentRole = null;
 let duties = makeDefaultDuties();
 let eventDocs = new Map();
+let showPast = false;
 
 function dutiesCollection() { return collection(db, ...APP_ROOT, "duties"); }
 function dutyDocument(date) { return doc(db, ...APP_ROOT, "duties", date); }
@@ -61,6 +62,11 @@ function makeDefaultDuties() {
 function parseDateOnly(value) {
   const [y,m,d] = value.split("-").map(Number);
   return new Date(y, m - 1, d);
+}
+
+function todayDateOnly() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
 function formatDate(value) {
@@ -168,9 +174,19 @@ function renderTimelineCard(item) {
 }
 
 function renderTimeline() {
-  const items = timelineItems();
+  const allItems = timelineItems();
+  const today = todayDateOnly();
+  const pastItems = allItems.filter(item => item.date && parseDateOnly(item.date) < today);
+  const visibleItems = showPast
+    ? allItems
+    : allItems.filter(item => !item.date || parseDateOnly(item.date) >= today);
+
+  const toggle = $("#togglePastBtn");
+  toggle.hidden = pastItems.length === 0;
+  toggle.textContent = showPast ? "Skjul tidligere" : `Vis tidligere (${pastItems.length})`;
+
   const container = $("#timelineList");
-  if (!items.length) {
+  if (!visibleItems.length) {
     $("#timelineEmpty").hidden = false;
     container.innerHTML = "";
     return;
@@ -179,7 +195,7 @@ function renderTimeline() {
 
   let currentMonth = "";
   let html = "";
-  items.forEach(item => {
+  visibleItems.forEach(item => {
     const month = item.date ? monthName(item.date) : (item.monthLabel || "Uten dato");
     if (month !== currentMonth) {
       currentMonth = month;
@@ -191,9 +207,8 @@ function renderTimeline() {
 }
 
 function nextTimelineItem() {
-  const today = new Date();
-  const day = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  return timelineItems().find(item => item.date && parseDateOnly(item.date) >= day) || null;
+  const today = todayDateOnly();
+  return timelineItems().find(item => item.date && parseDateOnly(item.date) >= today) || null;
 }
 
 function renderNext() {
@@ -302,6 +317,7 @@ $("#loginBtn").addEventListener("click", async () => {
 $("#logoutBtn").addEventListener("click", async () => { if (auth) await signOut(auth); });
 $("#addDutyBtn").addEventListener("click", () => openDutyDialog());
 $("#jumpToTimelineBtn").addEventListener("click", () => $("#timelineSection").scrollIntoView({ behavior:"smooth" }));
+$("#togglePastBtn").addEventListener("click", () => { showPast = !showPast; renderTimeline(); });
 $("#closeDutyBtn").addEventListener("click", () => $("#dutyDialog").close());
 $("#cancelDutyBtn").addEventListener("click", () => $("#dutyDialog").close());
 $("#closeEventEditBtn").addEventListener("click", () => $("#eventEditDialog").close());
@@ -406,6 +422,7 @@ if (!firebaseReady) {
     currentRole = null;
     duties = makeDefaultDuties();
     eventDocs = new Map();
+    showPast = false;
     $("#loginBtn").hidden = Boolean(user);
     $("#logoutBtn").hidden = !user;
     if (!user) {
