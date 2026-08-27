@@ -2,67 +2,85 @@
 <html lang="no">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#1f4f7a" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#062b54" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Skulemusikken" />
   <title>Skulemusikken</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=20260826-5" />
+  <link rel="stylesheet" href="styles.css?v=20260827-1" />
 </head>
 <body>
-  <header class="topbar">
-    <div>
+  <header class="topbar" id="home">
+    <div class="brand-block">
       <p class="eyebrow">Samnanger skulemusikklag</p>
       <h1>Skulemusikken</h1>
     </div>
-    <div class="top-actions">
-      <button id="loginBtn" class="secondary-btn" type="button">Logg inn med Google</button>
-      <button id="logoutBtn" class="secondary-btn" type="button" hidden>Logg ut</button>
-      <button id="addDutyBtn" class="primary-btn" type="button">+ Legg til vakt</button>
+    <div class="header-mark" aria-hidden="true">
+      <svg viewBox="0 0 64 64" role="img"><path d="M40 8v31.5a10.5 10.5 0 1 1-5-9V16l21-5v20.5a10.5 10.5 0 1 1-5-9V7L40 8Z" fill="currentColor"/></svg>
     </div>
   </header>
 
   <main class="page">
-    <section class="auth-card" aria-live="polite">
-      <strong>Tilgang</strong>
-      <span id="authStatus">Kontrollerer Firebase-oppsett …</span>
+    <section class="auth-card" id="profileSection" aria-live="polite">
+      <div class="avatar" aria-hidden="true">♪</div>
+      <div class="auth-copy">
+        <strong>Konto</strong>
+        <span id="authStatus">Kontrollerer Firebase-oppsett …</span>
+      </div>
+      <div class="auth-actions">
+        <button id="loginBtn" class="secondary-btn" type="button">Logg inn</button>
+        <button id="logoutBtn" class="secondary-btn" type="button" hidden>Logg ut</button>
+      </div>
     </section>
 
-    <section class="hero-card" aria-labelledby="nextItemTitle">
+    <button id="addDutyBtn" class="primary-btn quick-add" type="button">
+      <span class="quick-plus" aria-hidden="true">+</span>
+      <span>Legg til vakt</span>
+      <span class="quick-arrow" aria-hidden="true">›</span>
+    </button>
+
+    <section class="hero-card" id="nextSection" aria-labelledby="nextItemTitle">
       <div class="hero-main">
-        <p class="eyebrow">Neste på terminlista</p>
+        <div class="hero-label-row">
+          <span class="hero-calendar" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 2v3M17 2v3M3.5 9h17M5.5 4h13a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </span>
+          <p class="eyebrow">Neste på terminlista</p>
+        </div>
         <h2 id="nextItemTitle">Laster…</h2>
         <div id="nextItemSummary" aria-live="polite"></div>
       </div>
-      <button class="secondary-btn" id="jumpToTimelineBtn" type="button">Se hele terminlista</button>
+      <button class="hero-link" id="jumpToTimelineBtn" type="button">Se hele terminlista <span aria-hidden="true">›</span></button>
     </section>
 
-    <section id="timelineSection" aria-labelledby="timelineTitle">
+    <section id="timelineSection" class="timeline-section" aria-labelledby="timelineTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Hausten 2026</p>
           <h2 id="timelineTitle">Terminliste</h2>
-          <p class="muted">Øvinger, seminarer, konserter og vakter i én kronologisk oversikt.</p>
+          <p class="muted">Øvinger, seminarer, konserter og vakter samlet på ett sted.</p>
         </div>
-        <button id="togglePastBtn" class="secondary-btn" type="button" hidden>Vis tidligere</button>
+        <button id="togglePastBtn" class="secondary-btn compact-btn" type="button" hidden>Vis tidligere</button>
       </div>
       <div id="timelineList" class="timeline-list" aria-live="polite"></div>
       <div id="timelineEmpty" class="empty-state" hidden>Ingen punkter å vise.</div>
     </section>
 
-    <section aria-labelledby="corpsTitle">
+    <section id="corpsSection" aria-labelledby="corpsTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Faste tider</p>
-          <h2 id="corpsTitle">Korpsene</h2>
+          <h2 id="corpsTitle">Korps & øvingstider</h2>
         </div>
       </div>
       <div class="corps-grid">
-        <article class="corps-card"><span class="badge">Hovedkorps</span><h3>Torsdag</h3><p class="time">17:30–19:45</p><p class="muted">Oppmøte 17:15</p></article>
-        <article class="corps-card"><span class="badge">Juniorkorps</span><h3>Torsdag</h3><p class="time">17:00–18:30</p><p class="muted">Oppmøte 16:50</p></article>
-        <article class="corps-card"><span class="badge">Aspirantkorps</span><h3>Torsdag</h3><p class="time">17:30–18:30</p><p class="muted">Oppmøte 17:20</p></article>
+        <article class="corps-card"><span class="corps-icon" aria-hidden="true">♫</span><span class="badge">Hovedkorps</span><h3>Torsdag</h3><p class="time">17:30–19:45</p><p class="muted">Oppmøte 17:15</p></article>
+        <article class="corps-card"><span class="corps-icon gold" aria-hidden="true">♪</span><span class="badge">Juniorkorps</span><h3>Torsdag</h3><p class="time">17:00–18:30</p><p class="muted">Oppmøte 16:50</p></article>
+        <article class="corps-card"><span class="corps-icon soft" aria-hidden="true">♬</span><span class="badge">Aspirantkorps</span><h3>Torsdag</h3><p class="time">17:30–18:30</p><p class="muted">Oppmøte 17:20</p></article>
+        <article class="corps-card"><span class="corps-icon" aria-hidden="true">✓</span><span class="badge">Styrevakt</span><h3>Ved øving</h3><p class="time small-time">Etter plan</p><p class="muted">Se terminlista</p></article>
       </div>
     </section>
 
@@ -76,6 +94,21 @@
       </div>
     </section>
   </main>
+
+  <nav class="bottom-nav" aria-label="Hovedmeny">
+    <a href="#home" class="nav-item active" aria-label="Hjem">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.2 12 4l9 7.2V21h-6v-6H9v6H3v-9.8Z" fill="currentColor"/></svg><span>Hjem</span>
+    </a>
+    <a href="#timelineSection" class="nav-item" aria-label="Terminliste">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5.5 5h13A1.5 1.5 0 0 1 20 6.5v13A1.5 1.5 0 0 1 18.5 21h-13A1.5 1.5 0 0 1 4 19.5v-13A1.5 1.5 0 0 1 5.5 5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Terminliste</span>
+    </a>
+    <a href="#nextSection" class="nav-item" aria-label="Vakter">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM2.5 19c.4-3.3 2.2-5 5.5-5s5.1 1.7 5.5 5M13 14.4c.8-.9 1.9-1.4 3.4-1.4 2.8 0 4.4 1.5 4.8 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Vakter</span>
+    </a>
+    <a href="#profileSection" class="nav-item" aria-label="Konto">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c.5-4.1 2.8-6.2 7-6.2s6.5 2.1 7 6.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Konto</span>
+    </a>
+  </nav>
 
   <dialog id="dutyDialog">
     <form id="dutyForm" class="dialog-form">
