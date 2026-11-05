@@ -176,14 +176,8 @@ function renderTimelineCard(item) {
 function renderTimeline() {
   const allItems = timelineItems();
   const today = todayDateOnly();
-  const todayItems = allItems.filter(item => item.date && parseDateOnly(item.date).getTime() === today.getTime());
-  const upcomingItems = allItems.filter(item => !item.date || parseDateOnly(item.date) > today);
+  const upcomingItems = allItems.filter(item => !item.date || parseDateOnly(item.date) >= today);
   const pastItems = allItems.filter(item => item.date && parseDateOnly(item.date) < today);
-
-  const todayContainer = $("#todayDutiesList");
-  todayContainer.innerHTML = todayItems.length
-    ? todayItems.map(renderTimelineCard).join("")
-    : '<p class="muted">Ingen vakter eller aktiviteter i dag.</p>';
 
   const toggle = $("#togglePastBtn");
   toggle.hidden = pastItems.length === 0;
