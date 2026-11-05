@@ -475,3 +475,11 @@ dialog::backdrop { background: rgba(7, 22, 38, .55); backdrop-filter: blur(3px);
   .timeline-date { font-size: .69rem; }
   .corps-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
 }
+
+/* Personlig vaktoversikt */
+.today-duties { padding: 16px; border: 2px solid #8cbba2; border-radius: 18px; background: rgba(107, 177, 138, .10); }
+.today-duties .section-heading { margin-bottom: 12px; }
+.future-timeline { border: 1px solid rgba(128,128,128,.3); border-radius: 14px; overflow: hidden; }
+.future-timeline > summary { cursor: pointer; padding: 17px; font-weight: 700; list-style-position: inside; }
+.future-timeline[open] > summary { border-bottom: 1px solid rgba(128,128,128,.2); }
+.future-timeline > .timeline-list { padding: 12px; }
