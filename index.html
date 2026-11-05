@@ -56,6 +56,11 @@
       <button class="hero-link" id="jumpToTimelineBtn" type="button">Se hele terminlista <span aria-hidden="true">›</span></button>
     </section>
 
+    <section id="todayDutiesSection" class="timeline-section today-duties" aria-labelledby="todayDutiesTitle">
+      <div class="section-heading"><div><p class="eyebrow">Din oversikt</p><h2 id="todayDutiesTitle">Dagens vakter</h2></div></div>
+      <div id="todayDutiesList" class="timeline-list" aria-live="polite"></div>
+    </section>
+
     <section id="timelineSection" class="timeline-section" aria-labelledby="timelineTitle">
       <div class="section-heading">
         <div>
@@ -65,7 +70,7 @@
         </div>
         <button id="togglePastBtn" class="secondary-btn compact-btn" type="button" hidden>Vis tidligere</button>
       </div>
-      <div id="timelineList" class="timeline-list" aria-live="polite"></div>
+      <details id="futureTimelineDetails" class="future-timeline"><summary id="futureTimelineSummary">Vis kommende aktiviteter og vakter</summary><div id="timelineList" class="timeline-list" aria-live="polite"></div></details>
       <div id="timelineEmpty" class="empty-state" hidden>Ingen punkter å vise.</div>
     </section>
 
